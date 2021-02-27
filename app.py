@@ -29,12 +29,12 @@ def welcome():
     """List all available api routes."""
     return (
         f"Available Routes:<br/>"
-        f"Dates must be in the following formatt: yyyy-mm-dd with no leading zeros<br/>"
         f"/api/v1.0/precipitation<br/>"
         f"/api/v1.0/stations<br/>"
         f"/api/v1.0/tobs<br/>"
-        f"/api/v1.0/<start><br/>"
-        f"/api/v1.0/<start>/<end>"
+        f"/api/v1.0/Start Date<br/>"
+        f"/api/v1.0/Start Date/End Date<br/>"
+        f"Note: Dates must be input in the following format: yyyy-mm-dd. make sure to include leading zeros"
     )
 
 #Precipitation list - key error (non unique values) needs to be fixed
@@ -48,7 +48,6 @@ def precipitation():
     results = session.query(Measurement.date,Measurement.prcp).all()
     all_precipitation=[]
     
-#     all_prcp=[]
     for date, precipitation in results:
         prcp_dict={}
         prcp_dict['date']=date
@@ -57,25 +56,30 @@ def precipitation():
 
     session.close()
 
-    # Convert list of tuples into normal list
-#     all_prcp = list(np.ravel(results))
-
     return jsonify(all_precipitation)
 
 #Stations list - working
 @app.route("/api/v1.0/stations")
 def stations():
+    all_stations=[]
     session=Session(engine)
     
     results=session.query(Station.station, Station.name).all()
     
+    for station, name in results:
+        station_dict={}
+        station_dict['Station ID']=station
+        station_dict['Name']=name
+        all_stations.append(station_dict)
+    
     session.close()
 
-    return jsonify(results)
+    return jsonify(all_stations)
 
-#Temperature Observations - working
+#Temperature Observations
 @app.route("/api/v1.0/tobs")
 def tobs():
+    all_tobs=[]
     session=Session(engine)
     
     station_activity=session.query(Measurement.station,func.count(Measurement.date))\
@@ -92,10 +96,16 @@ def tobs():
     .filter(Measurement.station==most_active_station)\
     .filter(Measurement.date>=year_ago)\
     .order_by(Measurement.date.desc()).all()
-
+    
+    for date, tobs in results:
+        tobs_dict={}
+        tobs_dict['Date']=date
+        tobs_dict['Temperature Observation']=tobs
+        all_tobs.append(tobs_dict)
+    
     session.close()
 
-    return jsonify(results)
+    return jsonify(all_tobs)
 
 #When given the start only, calculate TMIN, TAVG, and TMAX for all dates greater than and equal to the start date.
 @app.route("/api/v1.0/<start>")
