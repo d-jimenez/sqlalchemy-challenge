@@ -46,18 +46,21 @@ def precipitation():
     """Return a list of all passenger names"""
     # Query all measurment data for date as keys and percipitation (prcp) as values
     results = session.query(Measurement.date,Measurement.prcp).all()
-    
-    session.close()
+    all_precipitation=[]
     
 #     all_prcp=[]
-    for key, value in results:
+    for date, precipitation in results:
         prcp_dict={}
-        prcp_dict[key].append(value)
+        prcp_dict['date']=date
+        prcp_dict['precipitation']=precipitation
+        all_precipitation.append(prcp_dict)
+
+    session.close()
 
     # Convert list of tuples into normal list
 #     all_prcp = list(np.ravel(results))
 
-    return jsonify(prcp_dict)
+    return jsonify(all_precipitation)
 
 #Stations list - working
 @app.route("/api/v1.0/stations")
@@ -66,6 +69,8 @@ def stations():
     
     results=session.query(Station.station, Station.name).all()
     
+    session.close()
+
     return jsonify(results)
 
 #Temperature Observations - working
@@ -88,18 +93,60 @@ def tobs():
     .filter(Measurement.date>=year_ago)\
     .order_by(Measurement.date.desc()).all()
 
+    session.close()
+
     return jsonify(results)
 
-# #When given the start only, calculate TMIN, TAVG, and TMAX for all dates greater than and equal to the start date.
-# @app.route("/api/v1.0/stations/<start>")
-# def start():
-#     session=Session(engine)
+#When given the start only, calculate TMIN, TAVG, and TMAX for all dates greater than and equal to the start date.
+@app.route("/api/v1.0/<start>")
+def start(start):
+    session=Session(engine)
     
-#     temp_start=session.query(MEasurement.date,Measurement.
-# #When given the start and the end date, calculate the TMIN, TAVG, and TMAX for dates between the start and end date inclusive.
-# @app.route("/api/v1.0/stations/<start>/<end>")
-# def start_end():
-#     session=Session(engine)
+    temp_results=session.query(func.min(Measurement.tobs),func.max(Measurement.tobs),func.avg(Measurement.tobs))\
+        .filter(Measurement.date>=start).all()
+    
+    results=list(np.ravel(temp_results))
+
+    min_temp=results[0]
+    max_temp=results[1]
+    avg_temp=results[2]
+    
+    results_dict={
+        'Start Date': start,
+        'Minimum Temperature': min_temp, 
+        'Max Temperature': max_temp,
+        'Average Temperature': avg_temp
+        }
+    
+    session.close()
+
+    return jsonify(results_dict)
+
+#When given the start and the end date, calculate the TMIN, TAVG, and TMAX for dates between the start and end date inclusive.
+@app.route("/api/v1.0/<start>/<end>")
+def end(start,end):
+    session=Session(engine)
+    
+    trip_calcs=session.query(func.min(Measurement.tobs),func.max(Measurement.tobs),func.avg(Measurement.tobs))\
+        .filter(Measurement.date>=start).filter(Measurement.date<=end).all()
+    
+    trip_results=list(np.ravel(trip_calcs))
+
+    min_temp_1=trip_results[0]
+    max_temp_1=trip_results[1]
+    avg_temp_1=trip_results[2]
+    
+    results_dict_1={
+        'Start Date': start,
+        'End Date':end,
+        'Minimum Temperature': min_temp_1, 
+        'Max Temperature': max_temp_1,
+        'Average Temperature': avg_temp_1
+        }
+    
+    session.close()
+
+    return jsonify(results_dict_1)
     
 if __name__ == '__main__':
     app.run(debug=True)
